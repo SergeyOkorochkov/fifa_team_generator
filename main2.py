@@ -2,57 +2,58 @@ import random
 from docx import Document
 from datetime import datetime
 
-# Списки игроков по позициям
-goalkeepers = ['Акинфеев', 'Ноер', 'Куртуа', 'Навас', 'Де Хеа', 'Тер Штеген', 'Облак', 'Буффон']
-defenders = ['Рамос', 'Марсело', 'Карвахаль', 'Рафаэл', 'Варан', 'Тьяго Силва', 'Компани', 'Дани Алвес', 'Алаба',
-             'Маркос Алонсо', 'Рохо', 'Пике', 'Жорди Альба', 'Пепе', 'Лам', 'Валенсия', 'Смоллинг', 'Маскерано',
-             'Давид Луиз', 'Марио Фернандес', 'Филиппе Луиз', 'Беллерин', 'Боатенг', 'Ругани', 'Годин', 'Умтити',
-             'Сандро']
-midfielders = ['Иньеста', 'Модрич', 'Кросс', 'Конте', 'Вильям', 'Бускетс', 'Дембеле', 'Эриксен', 'Сон', 'Алли', 'Озил',
-               'Головин', 'Погба', 'Черышев', 'Ди Мария', 'Оскар', 'Алькантара', 'Де Брюйне', 'Ракитич', 'Иско',
-               'Марко Ройс', 'Хамес', 'Сильва', 'Фабрегас', 'Матюиди', 'Касорла', 'Гуардадо', 'Сане', 'Стерлинг']
-forwards = ['Азар', 'Неймар', 'Роналду', 'Дибала', 'Мбаппе', 'Кавани', 'Месси', 'Коутиньо', 'Дзюба', 'Дембеле',
-            'Суарес', 'Агуэро', 'Левандовский', 'Кейн', 'Гризман', 'Лукаку', 'Салах', 'Фирмино', 'Промес', 'Коста',
-            'Бэйл', 'Мане', 'Санчес', 'Икарди', 'Аубемейанг', 'Ляказетт', 'Джеко']
+# Игроки по позициям
+positions = {
+    "Вратари": ['Акинфеев', 'Ноер', 'Куртуа', 'Навас', 'Де Хеа', 'Тер Штеген', 'Облак', 'Буффон'],
+    "Защитники": ['Рамос', 'Марсело', 'Карвахаль', 'Рафаэл', 'Варан', 'Тьяго Силва', 'Компани', 'Дани Алвес', 'Алаба',
+                  'Маркос Алонсо', 'Рохо', 'Пике', 'Жорди Альба', 'Пепе', 'Лам', 'Валенсия', 'Смоллинг', 'Маскерано',
+                  'Давид Луиз', 'Марио Фернандес', 'Филиппе Луиз', 'Беллерин', 'Боатенг', 'Ругани', 'Годин', 'Умтити',
+                  'Сандро'],
+    "Полузащитники": ['Иньеста', 'Модрич', 'Кросс', 'Конте', 'Вильям', 'Бускетс', 'Дембеле', 'Эриксен', 'Сон', 'Алли',
+                      'Озил', 'Головин', 'Погба', 'Черышев', 'Ди Мария', 'Оскар', 'Алькантара', 'Де Брюйне', 'Ракитич',
+                      'Иско', 'Марко Ройс', 'Хамес', 'Сильва', 'Фабрегас', 'Матюиди', 'Касорла', 'Гуардадо', 'Сане',
+                      'Стерлинг'],
+    "Нападающие": ['Азар', 'Неймар', 'Роналду', 'Дибала', 'Мбаппе', 'Кавани', 'Месси', 'Коутиньо', 'Дзюба', 'Дембеле',
+                   'Суарес', 'Агуэро', 'Левандовский', 'Кейн', 'Гризман', 'Лукаку', 'Салах', 'Фирмино', 'Промес',
+                   'Коста', 'Бэйл', 'Мане', 'Санчес', 'Икарди', 'Аубемейанг', 'Ляказетт', 'Джеко']
+}
 
-# Смешиваем игроков
-random.shuffle(goalkeepers)
-random.shuffle(defenders)
-random.shuffle(midfielders)
-random.shuffle(forwards)
+# Получаем названия команд
+team_1_name = input("Введите название первой команды: ")
+team_2_name = input("Введите название второй команды: ")
 
-# Инициализация команд
-team_karachev = []
-team_okorochkov = []
+# Запрос количества игроков на каждую позицию
+positions_count = {}
+for position in positions.keys():
+    while True:
+        try:
+            count = int(input(f"Сколько {position.lower()} вы хотите в каждой команде? "))
+            if count >= 0:
+                positions_count[position] = count
+                break
+            else:
+                print("Число должно быть положительным!")
+        except ValueError:
+            print("Введите целое число!")
 
+# Функция для распределения игроков
+def divide_players(players, count):
+    random.shuffle(players)
+    selected_players = players[:count * 2]  # Оставляем только нужное количество игроков
+    return selected_players[::2], selected_players[1::2]
 
-# Функция для деления игроков на команды
-def divide_players(players):
-    team_1 = []
-    team_2 = []
-    for i, player in enumerate(players):
-        if i % 2 == 0:
-            team_1.append(player)
-        else:
-            team_2.append(player)
-    return team_1, team_2
+# Генерация команд
+team_1 = {}
+team_2 = {}
 
+for position, players in positions.items():
+    team_1[position], team_2[position] = divide_players(players, positions_count[position])
 
-# Разделение игроков на команды
-team_karachev_goalkeepers, team_okorochkov_goalkeepers = divide_players(goalkeepers)
-team_karachev_defenders, team_okorochkov_defenders = divide_players(defenders)
-team_karachev_midfielders, team_okorochkov_midfielders = divide_players(midfielders)
-team_karachev_forwards, team_okorochkov_forwards = divide_players(forwards)
-
-# Создаем документ Word
+# Создаём документ Word
 doc = Document()
 doc.add_heading('Состав команд', 0)
 
-# Команда Карачева
-doc.add_heading('Команда Карачева', level=1)
-
-
-# Функция для добавления таблицы игроков в два столбца
+# Функция для добавления игроков в таблицу
 def add_players_table(doc, team_name, players):
     doc.add_heading(team_name, level=2)
     table = doc.add_table(rows=0, cols=2)
@@ -64,30 +65,16 @@ def add_players_table(doc, team_name, players):
         if i + 1 < len(players):
             row[1].text = players[i + 1]
 
+# Добавление команд в документ
+for team_name, team in [(team_1_name, team_1), (team_2_name, team_2)]:
+    doc.add_heading(team_name, level=1)
+    for position, players in team.items():
+        add_players_table(doc, position, players)
+    doc.add_page_break()
 
-# Добавляем составы команды Карачева в таблицы
-add_players_table(doc, 'Вратари', team_karachev_goalkeepers)
-add_players_table(doc, 'Защитники', team_karachev_defenders)
-add_players_table(doc, 'Полузащитники', team_karachev_midfielders)
-add_players_table(doc, 'Нападающие', team_karachev_forwards)
+# Генерируем имя файла и сохраняем
+file_name = f"Составы_команд_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.docx"
 
-# Добавляем разрыв страницы перед командой Окорочкова
-doc.add_page_break()
-
-# Команда Окорочкова
-doc.add_heading('Команда Окорочкова', level=1)
-
-# Добавляем составы команды Окорочкова в таблицы
-add_players_table(doc, 'Вратари', team_okorochkov_goalkeepers)
-add_players_table(doc, 'Защитники', team_okorochkov_defenders)
-add_players_table(doc, 'Полузащитники', team_okorochkov_midfielders)
-add_players_table(doc, 'Нападающие', team_okorochkov_forwards)
-
-# Генерируем уникальное имя файла с датой
-date_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-file_name = f"Составы_команд_{date_str}.docx"
-
-# Сохраняем документ
 try:
     doc.save(file_name)
     print(f"Состав команд сохранен в файл {file_name}")
