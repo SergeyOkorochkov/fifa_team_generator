@@ -1,115 +1,118 @@
+from telegram import Update, InputFile
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
 import random
+import os
 from docx import Document
+from datetime import datetime
 
-# Списки игроков по позициям
-goalkeepers = ['Акинфеев', 'Ноер', 'Куртуа', 'Навас', 'Де Хеа', 'Тер Штеген', 'Облак', 'Буффон']
-defenders = ['Рамос', 'Марсело', 'Карвахаль', 'Рафаэл', 'Варан', 'Тьяго Силва', 'Компани',
-             'Дани Алвес', 'Алаба', 'Маркос Алонсо', 'Рохо', 'Пике', 'Жорди Альба',
-             'Пепе', 'Лам', 'Валенсия', 'Смоллинг', 'Маскерано', 'Давид Луиз',
-             'Марио Фернандес', 'Филиппе Луиз', 'Беллерин', 'Боатенг',
-             'Ругани', 'Годин', 'Умтити', 'Сандро']
-midfielders = ['Иньеста', 'Модрич', 'Кросс', 'Конте', 'Вильям', 'Бускетс', 'Дембеле',
-               'Эриксен', 'Сон', 'Алли', 'Озил', 'Головин', 'Погба', 'Черышев', 'Ди Мария',
-               'Оскар', 'Алькантара', 'Де Брюйне', 'Ракитич', 'Иско', 'Марко Ройс', 'Хамес',
-               'Сильва', 'Фабрегас', 'Матюиди', 'Касорла', 'Гуардадо', 'Сане', 'Стерлинг']
-forwards = ['Азар', 'Неймар', 'Роналду', 'Дибала', 'Мбаппе', 'Кавани', 'Месси', 'Коутиньо',
-            'Дзюба', 'Дембеле', 'Суарес', 'Агуэро', 'Левандовский', 'Кейн', 'Гризман',
-            'Лукаку', 'Салах', 'Фирмино', 'Промес', 'Коста', 'Бэйл', 'Мане', 'Санчес',
-            'Икарди', 'Аубемейанг', 'Ляказетт', 'Джеко']
+# Ваш токен
+TOKEN = '7847206496:AAGdiZkmjCgra_depXpOhK_K6sZgX0qVjoE'
 
-# Смешиваем игроков
-random.shuffle(goalkeepers)
-random.shuffle(defenders)
-random.shuffle(midfielders)
-random.shuffle(forwards)
+# Состояния для бота
+TEAM_NAMES, POSITIONS_COUNT, PROCESSING = range(3)
 
-# Инициализация команд
-team_karachev = []
-team_okorochkov = []
+# Игроки по позициям
+positions = {
+    "Вратари": ['Акинфеев', 'Ноер', 'Куртуа', 'Навас', 'Де Хеа', 'Тер Штеген', 'Облак', 'Буффон'],
+    "Защитники": ['Рамос', 'Марсело', 'Карвахаль', 'Рафаэл', 'Варан', 'Тьяго Силва', 'Компани', 'Дани Алвес',
+                  'Алаба', 'Маркос Алонсо', 'Рохо', 'Пике', 'Жорди Альба', 'Пепе', 'Лам', 'Валенсия', 'Смоллинг',
+                  'Маскерано', 'Давид Луиз', 'Марио Фернандес', 'Филиппе Луиз', 'Беллерин', 'Боатенг', 'Ругани',
+                  'Годин', 'Умтити', 'Сандро'],
+    "Полузащитники": ['Иньеста', 'Модрич', 'Кросс', 'Конте', 'Вильям', 'Бускетс', 'Дембеле', 'Эриксен', 'Сон', 'Алли',
+                      'Озил', 'Головин', 'Погба', 'Черышев', 'Ди Мария', 'Оскар', 'Алькантара', 'Де Брюйне', 'Ракитич',
+                      'Иско', 'Марко Ройс', 'Хамес', 'Сильва', 'Фабрегас', 'Матюиди', 'Касорла', 'Гуардадо', 'Сане',
+                      'Стерлинг'],
+    "Нападающие": ['Азар', 'Неймар', 'Роналду', 'Дибала', 'Мбаппе', 'Кавани', 'Месси', 'Коутиньо', 'Дзюба', 'Дембеле',
+                   'Суарес', 'Агуэро', 'Левандовский', 'Кейн', 'Гризман', 'Лукаку', 'Салах', 'Фирмино', 'Промес',
+                   'Коста', 'Бэйл', 'Мане', 'Санчес', 'Икарди', 'Аубемейанг', 'Ляказетт', 'Джеко']
+}
 
-# Функция для деления игроков на команды
-def divide_players(players):
-    team_1 = []
-    team_2 = []
-    for i, player in enumerate(players):
-        if i % 2 == 0:
-            team_1.append(player)
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Привет! Введи название первой команды:")
+    return TEAM_NAMES
+
+
+async def team_names(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if "team_1" not in context.user_data:
+        context.user_data["team_1"] = update.message.text.strip()
+        await update.message.reply_text("Теперь введи название второй команды:")
+        return TEAM_NAMES
+
+    context.user_data["team_2"] = update.message.text.strip()
+    context.user_data["positions_count"] = {}
+    context.user_data["current_position"] = list(positions.keys())[0]
+    await update.message.reply_text(f"Сколько {context.user_data['current_position'].lower()} в каждой команде?")
+    return POSITIONS_COUNT
+
+
+async def positions_count(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    position = context.user_data["current_position"]
+    try:
+        count = int(update.message.text)
+        max_count = len(positions[position]) // 2
+        if 0 <= count <= max_count:
+            context.user_data["positions_count"][position] = count
+            keys = list(positions.keys())
+            current_index = keys.index(position)
+            if current_index + 1 < len(keys):
+                context.user_data["current_position"] = keys[current_index + 1]
+                await update.message.reply_text(
+                    f"Сколько {context.user_data['current_position'].lower()} в каждой команде?")
+                return POSITIONS_COUNT
+
+            return await process_teams(update, context)
         else:
-            team_2.append(player)
-    return team_1, team_2
+            await update.message.reply_text(f"Ошибка: нельзя выбрать больше {max_count} игроков на позицию {position}!")
+    except ValueError:
+        await update.message.reply_text("Введите целое число!")
+    return POSITIONS_COUNT
 
-# Разделение игроков на команды
-team_karachev_goalkeepers, team_okorochkov_goalkeepers = divide_players(goalkeepers)
-team_karachev_defenders, team_okorochkov_defenders = divide_players(defenders)
-team_karachev_midfielders, team_okorochkov_midfielders = divide_players(midfielders)
-team_karachev_forwards, team_okorochkov_forwards = divide_players(forwards)
 
-# Выводим составы команд
-print("Команда Карачева:")
-print("Вратари:", team_karachev_goalkeepers)
-print("Защитники:", team_karachev_defenders)
-print("Полузащитники:", team_karachev_midfielders)
-print("Нападающие:", team_karachev_forwards)
+async def process_teams(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    team_1, team_2 = {}, {}
+    for position, players in positions.items():
+        random.shuffle(players)
+        count = context.user_data["positions_count"][position]
+        selected_players = players[:count * 2]
+        team_1[position], team_2[position] = selected_players[::2], selected_players[1::2]
 
-print("\nКоманда Окорочкова:")
-print("Вратари:", team_okorochkov_goalkeepers)
-print("Защитники:", team_okorochkov_defenders)
-print("Полузащитники:", team_okorochkov_midfielders)
-print("Нападающие:", team_okorochkov_forwards)
+    doc = Document()
+    doc.add_heading('Состав команд', 0)
 
-# Создаем документ Word
-doc = Document()
-doc.add_heading('Состав команд', 0)
+    def add_players_table(doc, team_name, players):
+        doc.add_heading(team_name, level=2)
+        table = doc.add_table(rows=0, cols=2)
+        table.style = 'Table Grid'
+        for i in range(0, len(players), 2):
+            row = table.add_row().cells
+            row[0].text = players[i]
+            if i + 1 < len(players):
+                row[1].text = players[i + 1]
 
-# Команда Карачева
-doc.add_heading('Команда Карачева', level=1)
+    for team_name, team in [(context.user_data["team_1"], team_1), (context.user_data["team_2"], team_2)]:
+        doc.add_heading(team_name, level=1)
+        for position, players in team.items():
+            add_players_table(doc, position, players)
+        doc.add_page_break()
 
-# Вратари
-doc.add_heading('Вратари', level=2)
-for player in team_karachev_goalkeepers:
-    doc.add_paragraph(player)
+    file_path = f"teams_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.docx"
+    doc.save(file_path)
 
-# Защитники
-doc.add_heading('Защитники', level=2)
-for player in team_karachev_defenders:
-    doc.add_paragraph(player)
+    with open(file_path, "rb") as file:
+        await update.message.reply_document(document=InputFile(file), filename=file_path)
+    os.remove(file_path)
+    return ConversationHandler.END
 
-# Полузащитники
-doc.add_heading('Полузащитники', level=2)
-for player in team_karachev_midfielders:
-    doc.add_paragraph(player)
 
-# Нападающие
-doc.add_heading('Нападающие', level=2)
-for player in team_karachev_forwards:
-    doc.add_paragraph(player)
-
-# Команда Окорочкова
-doc.add_heading('Команда Окорочкова', level=1)
-
-# Вратари
-doc.add_heading('Вратари', level=2)
-for player in team_okorochkov_goalkeepers:
-    doc.add_paragraph(player)
-
-# Защитники
-doc.add_heading('Защитники', level=2)
-for player in team_okorochkov_defenders:
-    doc.add_paragraph(player)
-
-# Полузащитники
-doc.add_heading('Полузащитники', level=2)
-for player in team_okorochkov_midfielders:
-    doc.add_paragraph(player)
-
-# Нападающие
-doc.add_heading('Нападающие', level=2)
-for player in team_okorochkov_forwards:
-    doc.add_paragraph(player)
-
-# Сохраняем документ
-try:
-    doc.save("Составы команд.docx")
-    print("Состав команд сохранен в файл Составы команд.docx")
-except Exception as e:
-    print(f"Ошибка при сохранении файла: {e}")
+app = ApplicationBuilder().token(TOKEN).build()
+conv_handler = ConversationHandler(
+    entry_points=[CommandHandler('start', start)],
+    states={
+        TEAM_NAMES: [MessageHandler(filters.TEXT & ~filters.COMMAND, team_names)],
+        POSITIONS_COUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, positions_count)],
+    },
+    fallbacks=[]
+)
+app.add_handler(conv_handler)
+app.run_polling()
