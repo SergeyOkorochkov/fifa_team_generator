@@ -1,30 +1,52 @@
-from telegram import Update, InputFile
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
-import random
 import os
-from docx import Document
+import random
 from datetime import datetime
+from dotenv import load_dotenv  # Загружаем библиотеку для работы с .env
+from telegram import Update, InputFile
+from telegram.ext import (ApplicationBuilder, CommandHandler,
+                          MessageHandler, filters, ContextTypes, ConversationHandler)
+from docx import Document
 
-# Ваш токен
-TOKEN = '7847206496:AAGdiZkmjCgra_depXpOhK_K6sZgX0qVjoE'
+# Загружаем переменные окружения
+load_dotenv()
+
+# Получаем токен
+TOKEN = os.getenv("TOKEN")
+
+# Проверяем, загружен ли токен
+if not TOKEN:
+    raise ValueError("Ошибка: Токен не найден! Проверь .env-файл.")
+
+print("Токен успешно загружен!")
+
 
 # Состояния для бота
 TEAM_NAMES, POSITIONS_COUNT, PROCESSING = range(3)
 
 # Игроки по позициям
 positions = {
-    "Вратари": ['Акинфеев', 'Ноер', 'Куртуа', 'Навас', 'Де Хеа', 'Тер Штеген', 'Облак', 'Буффон'],
-    "Защитники": ['Рамос', 'Марсело', 'Карвахаль', 'Рафаэл', 'Варан', 'Тьяго Силва', 'Компани', 'Дани Алвес',
-                  'Алаба', 'Маркос Алонсо', 'Рохо', 'Пике', 'Жорди Альба', 'Пепе', 'Лам', 'Валенсия', 'Смоллинг',
-                  'Маскерано', 'Давид Луиз', 'Марио Фернандес', 'Филиппе Луиз', 'Беллерин', 'Боатенг', 'Ругани',
+    "Вратари": ['Акинфеев', 'Ноер', 'Куртуа', 'Навас', 'Де Хеа',
+                'Тер Штеген', 'Облак', 'Буффон'],
+    "Защитники": ['Рамос', 'Марсело', 'Карвахаль', 'Рафаэл',
+                  'Варан', 'Тьяго Силва', 'Компани', 'Дани Алвес',
+                  'Алаба', 'Маркос Алонсо', 'Рохо', 'Пике',
+                  'Жорди Альба', 'Пепе', 'Лам', 'Валенсия', 'Смоллинг',
+                  'Маскерано', 'Давид Луиз', 'Марио Фернандес',
+                  'Филиппе Луиз', 'Беллерин', 'Боатенг', 'Ругани',
                   'Годин', 'Умтити', 'Сандро'],
-    "Полузащитники": ['Иньеста', 'Модрич', 'Кросс', 'Конте', 'Вильям', 'Бускетс', 'Дембеле', 'Эриксен', 'Сон', 'Алли',
-                      'Озил', 'Головин', 'Погба', 'Черышев', 'Ди Мария', 'Оскар', 'Алькантара', 'Де Брюйне', 'Ракитич',
-                      'Иско', 'Марко Ройс', 'Хамес', 'Сильва', 'Фабрегас', 'Матюиди', 'Касорла', 'Гуардадо', 'Сане',
+    "Полузащитники": ['Иньеста', 'Модрич', 'Кросс', 'Конте',
+                      'Вильям', 'Бускетс', 'Дембеле', 'Эриксен', 'Сон', 'Алли',
+                      'Озил', 'Головин', 'Погба', 'Черышев',
+                      'Ди Мария', 'Оскар', 'Алькантара', 'Де Брюйне', 'Ракитич',
+                      'Иско', 'Марко Ройс', 'Хамес', 'Сильва',
+                      'Фабрегас', 'Матюиди', 'Касорла', 'Гуардадо', 'Сане',
                       'Стерлинг'],
-    "Нападающие": ['Азар', 'Неймар', 'Роналду', 'Дибала', 'Мбаппе', 'Кавани', 'Месси', 'Коутиньо', 'Дзюба', 'Дембеле',
-                   'Суарес', 'Агуэро', 'Левандовский', 'Кейн', 'Гризман', 'Лукаку', 'Салах', 'Фирмино', 'Промес',
-                   'Коста', 'Бэйл', 'Мане', 'Санчес', 'Икарди', 'Аубемейанг', 'Ляказетт', 'Джеко']
+    "Нападающие": ['Азар', 'Неймар', 'Роналду', 'Дибала', 'Мбаппе',
+                   'Кавани', 'Месси', 'Коутиньо', 'Дзюба', 'Дембеле',
+                   'Суарес', 'Агуэро', 'Левандовский', 'Кейн',
+                   'Гризман', 'Лукаку', 'Салах', 'Фирмино', 'Промес',
+                   'Коста', 'Бэйл', 'Мане', 'Санчес', 'Икарди',
+                   'Аубемейанг', 'Ляказетт', 'Джеко']
 }
 
 
@@ -42,31 +64,39 @@ async def team_names(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["team_2"] = update.message.text.strip()
     context.user_data["positions_count"] = {}
     context.user_data["current_position"] = list(positions.keys())[0]
-    await update.message.reply_text(f"Сколько {context.user_data['current_position'].lower()} в каждой команде?")
+
+    # Важное исправление! Здесь считаем максимальное количество для текущей позиции (вратари)
+    position = context.user_data["current_position"]
+    max_count = len(positions[position]) // 2  # Максимальное количество игроков на позицию
+    await update.message.reply_text(f"Сколько {position.lower()} в каждой команде? (максимум {max_count})")
     return POSITIONS_COUNT
 
 
 async def positions_count(update: Update, context: ContextTypes.DEFAULT_TYPE):
     position = context.user_data["current_position"]
+    max_count = len(positions[position]) // 2  # Максимальное количество игроков на текущую позицию
     try:
         count = int(update.message.text)
-        max_count = len(positions[position]) // 2
         if 0 <= count <= max_count:
             context.user_data["positions_count"][position] = count
             keys = list(positions.keys())
             current_index = keys.index(position)
             if current_index + 1 < len(keys):
                 context.user_data["current_position"] = keys[current_index + 1]
+                next_position = context.user_data["current_position"]
+                next_max_count = len(positions[next_position]) // 2
                 await update.message.reply_text(
-                    f"Сколько {context.user_data['current_position'].lower()} в каждой команде?")
+                    f"Сколько {next_position.lower()} в каждой команде? (максимум {next_max_count})")
                 return POSITIONS_COUNT
 
             return await process_teams(update, context)
         else:
             await update.message.reply_text(f"Ошибка: нельзя выбрать больше {max_count} игроков на позицию {position}!")
+            return POSITIONS_COUNT  # <-- Добавляем возврат состояния после ошибки
     except ValueError:
         await update.message.reply_text("Введите целое число!")
     return POSITIONS_COUNT
+
 
 
 async def process_teams(update: Update, context: ContextTypes.DEFAULT_TYPE):
